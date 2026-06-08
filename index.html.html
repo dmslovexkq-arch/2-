@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>포물선 퀴즈 — y = ax²</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f2eb;
+  --surface:#ede9e0;
+  --card:#ffffff;
+  --border:#d8d3c8;
+  --border2:#bfb9ad;
+  --text:#1a1814;
+  --muted:#7a756c;
+  --accent:#c94f2a;
+  --accent2:#2a6bc9;
+  --accent3:#2a9c6b;
+  --warn:#d4880a;
+  --danger:#c92a2a;
+  --success:#2a9c6b;
+  --radius:14px;
+}
+body{
+  font-family:'Noto Sans KR',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:2rem 1rem 5rem;
+}
+/* texture overlay */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='none'/%3E%3Ccircle cx='1' cy='1' r='0.5' fill='%23000' fill-opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;
+}
+
+/* HEADER */
+header{text-align:center;margin-bottom:2rem;position:relative;z-index:1}
+.logo-pill{
+  display:inline-block;
+  font-family:'DM Mono',monospace;font-size:0.7rem;font-weight:500;
+  letter-spacing:0.15em;text-transform:uppercase;
+  background:var(--accent);color:#fff;
+  border-radius:99px;padding:4px 14px;margin-bottom:0.8rem;
+}
+header h1{
+  font-size:clamp(1.8rem,5vw,2.6rem);font-weight:900;
+  letter-spacing:-0.02em;color:var(--text);
+  line-height:1.1;
+}
+header h1 span{color:var(--accent)}
+header p{margin-top:0.5rem;color:var(--muted);font-size:0.9rem}
+
+/* PROGRESS ROW */
+.progress-row{
+  width:100%;max-width:660px;
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:1.2rem;position:relative;z-index:1;
+}
+.prog-bar-bg{flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden}
+.prog-bar-fill{height:100%;background:var(--accent);border-radius:99px;transition:width .4s ease}
+.prog-label{font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--muted);white-space:nowrap}
+.score-chip{
+  font-family:'DM Mono',monospace;font-size:0.78rem;font-weight:500;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:99px;padding:3px 12px;color:var(--accent);white-space:nowrap;
+}
+
+/* QUIZ CARD */
+.quiz-card{
+  width:100%;max-width:660px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:1.8rem;
+  position:relative;z-index:1;
+  animation:cardIn .3s ease;
+  box-shadow:0 2px 0 var(--border),0 4px 0 var(--surface);
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* TIMER BAR */
+.timer-row{display:flex;align-items:center;gap:12px;margin-bottom:1.4rem}
+.timer-bar-bg{flex:1;height:8px;background:var(--surface);border-radius:99px;overflow:hidden}
+.timer-bar-fill{
+  height:100%;border-radius:99px;
+  background:var(--accent2);
+  transition:width .25s linear,background .3s;
+}
+.timer-bar-fill.warn{background:var(--warn)}
+.timer-bar-fill.danger{background:var(--danger)}
+.timer-num{
+  font-family:'DM Mono',monospace;font-size:1rem;font-weight:500;
+  min-width:2.2rem;text-align:right;
+  color:var(--text);transition:color .3s;
+}
+.timer-num.warn{color:var(--warn)}
+.timer-num.danger{color:var(--danger);animation:pulse .4s infinite alternate}
+@keyframes pulse{from{opacity:1}to{opacity:.5}}
+
+/* Q META */
+.q-meta{display:flex;align-items:center;gap:8px;margin-bottom:.9rem}
+.q-type-tag{
+  font-size:0.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;padding:3px 9px;color:var(--muted);
+}
+.q-diff{font-size:.72rem;color:var(--muted)}
+.hint-btn{
+  margin-left:auto;
+  font-family:'Noto Sans KR',sans-serif;font-size:.75rem;font-weight:500;
+  background:transparent;border:1px solid var(--border2);
+  border-radius:8px;padding:4px 12px;cursor:pointer;color:var(--muted);
+  transition:all .15s;
+}
+.hint-btn:hover{border-color:var(--warn);color:var(--warn)}
+.hint-btn.used{opacity:.4;cursor:default;pointer-events:none}
+.hint-btn.hidden{display:none}
+
+.q-text{font-size:1.05rem;font-weight:700;line-height:1.55;margin-bottom:1.4rem}
+.q-text .eq{font-family:'DM Mono',monospace;color:var(--accent);font-size:1.1rem}
+
+/* HINT BOX */
+.hint-box{
+  background:#fffbf0;border:1px solid #e8c96a;
+  border-radius:10px;padding:10px 14px;
+  font-size:.85rem;color:#7a5f0a;
+  margin-bottom:1rem;display:none;
+  animation:fadeUp .2s ease;
+}
+.hint-box.show{display:block}
+
+/* GRAPH WRAP */
+.graph-wrap{display:flex;justify-content:center;margin-bottom:1.4rem}
+canvas.graph{border-radius:10px;background:#f8f6f2;border:1px solid var(--border)}
+
+/* 2x2 GRID for 4 graphs */
+.graph-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  margin-bottom:1.4rem;width:100%;
+}
+.graph-option{
+  background:#f8f6f2;border:2px solid var(--border);
+  border-radius:12px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 6px 6px;
+  transition:border-color .15s,transform .1s;
+  position:relative;
+}
+.graph-option:hover:not(.disabled){border-color:var(--accent2);transform:translateY(-2px)}
+.graph-option .opt-label{
+  font-family:'DM Mono',monospace;font-size:.7rem;font-weight:500;
+  color:var(--muted);margin-bottom:4px;letter-spacing:.05em;
+}
+.graph-option.correct{border-color:var(--success);background:#f0fdf6}
+.graph-option.wrong{border-color:var(--danger);background:#fff5f5}
+.graph-option.disabled{cursor:default}
+.graph-option .check-icon{
+  position:absolute;top:6px;right:8px;
+  font-size:1rem;display:none;
+}
+.graph-option.correct .check-icon{display:block;color:var(--success)}
+.graph-option.wrong .check-icon{display:block;color:var(--danger)}
+
+/* TEXT OPTIONS */
+.options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt-btn{
+  background:var(--surface);border:1.5px solid var(--border);
+  border-radius:12px;padding:12px 14px;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;font-size:.9rem;font-weight:500;
+  color:var(--text);text-align:left;
+  display:flex;align-items:flex-start;gap:9px;
+  transition:border-color .15s,background .15s,transform .1s;
+  line-height:1.4;
+}
+.opt-btn:hover:not(:disabled){border-color:var(--accent2);background:#f0f5ff;transform:translateY(-1px)}
+.opt-btn:active:not(:disabled){transform:scale(.98)}
+.opt-idx{
+  font-family:'DM Mono',monospace;font-size:.68rem;font-weight:500;
+  background:var(--border);border-radius:5px;padding:2px 7px;
+  flex-shrink:0;margin-top:1px;color:var(--muted);
+}
+.opt-btn.correct{border-color:var(--success);background:#f0fdf6;color:var(--success)}
+.opt-btn.correct .opt-idx{background:rgba(42,156,107,.15);color:var(--success)}
+.opt-btn.wrong{border-color:var(--danger);background:#fff5f5;color:var(--danger)}
+.opt-btn.wrong .opt-idx{background:rgba(201,42,42,.12);color:var(--danger)}
+.opt-btn:disabled{cursor:default;transform:none!important}
+
+/* FEEDBACK */
+.feedback{
+  margin-top:1.1rem;padding:14px 16px;
+  border-radius:12px;font-size:.88rem;line-height:1.65;
+  display:none;
+}
+.feedback.show{display:block;animation:fadeUp .25s ease}
+.feedback.ok{background:#f0fdf6;border:1px solid #b2e8cf;color:#1a5e3a}
+.feedback.fail{background:#fff5f5;border:1px solid #f4bcbc;color:#7a1a1a}
+.feedback.timeout{background:#fff8f0;border:1px solid #f4d9a0;color:#7a4e0a}
+.fb-title{font-weight:700;margin-bottom:4px;font-size:.93rem}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* NEXT BTN */
+.next-btn{
+  margin-top:1rem;width:100%;padding:13px;
+  background:var(--text);border:none;border-radius:12px;
+  color:#fff;font-size:.95rem;font-weight:700;
+  font-family:'Noto Sans KR',sans-serif;
+  cursor:pointer;display:none;
+  transition:background .15s,transform .1s;
+}
+.next-btn.show{display:block;animation:fadeUp .2s ease}
+.next-btn:hover{background:#3a3530}
+.next-btn:active{transform:scale(.98)}
+
+/* TIMEOUT OVERLAY (on card) */
+.timeout-badge{
+  display:none;position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  background:rgba(212,136,10,.95);color:#fff;
+  font-size:1.1rem;font-weight:900;
+  padding:10px 24px;border-radius:12px;
+  white-space:nowrap;z-index:10;
+  animation:pop .3s ease;
+}
+.timeout-badge.show{display:block}
+@keyframes pop{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+/* RESULT */
+.result-screen{
+  width:100%;max-width:660px;
+  position:relative;z-index:1;display:none;text-align:center;
+}
+.result-screen.show{display:block;animation:cardIn .4s ease}
+.result-emblem{font-size:4rem;margin-bottom:.8rem}
+.result-title{
+  font-size:2.2rem;font-weight:900;letter-spacing:-.03em;
+  color:var(--text);margin-bottom:.4rem;
+}
+.result-title span{color:var(--accent)}
+.result-sub{color:var(--muted);font-size:.9rem;margin-bottom:2rem}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+.stat-box{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:1.1rem .5rem;
+  box-shadow:0 2px 0 var(--border);
+}
+.stat-val{
+  font-family:'DM Mono',monospace;font-size:1.9rem;font-weight:500;
+  color:var(--accent);margin-bottom:3px;
+}
+.stat-lbl{font-size:.74rem;color:var(--muted)}
+.review-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:1.2rem 1.5rem;
+  margin-bottom:1.5rem;text-align:left;
+  box-shadow:0 2px 0 var(--border);
+}
+.review-card h3{
+  font-size:.75rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:1rem;
+}
+.ri{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:8px 0;border-bottom:1px solid var(--border);
+  font-size:.85rem;line-height:1.5;
+}
+.ri:last-child{border-bottom:none}
+.ri-icon{flex-shrink:0;margin-top:1px}
+.ri-body{flex:1}
+.ri-q{color:var(--text);font-weight:500}
+.ri-a{font-size:.78rem;color:var(--muted);margin-top:2px}
+.restart-btn{
+  padding:14px 42px;background:var(--accent);
+  border:none;border-radius:12px;
+  color:#fff;font-size:1rem;font-weight:700;
+  font-family:'Noto Sans KR',sans-serif;
+  cursor:pointer;transition:background .15s,transform .1s;
+  box-shadow:0 3px 0 #9a3318;
+}
+.restart-btn:hover{background:#b8441f}
+.restart-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #9a3318}
+
+/* BONUS FLASH */
+.bonus-flash{
+  position:fixed;top:20px;right:20px;
+  background:var(--accent);color:#fff;
+  font-family:'DM Mono',monospace;font-size:.9rem;font-weight:500;
+  padding:8px 18px;border-radius:99px;
+  opacity:0;pointer-events:none;z-index:100;
+  transition:opacity .2s;
+}
+.bonus-flash.show{opacity:1;animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateX(20px)}to{transform:none}}
+</style>
+</head>
+<body>
+
+<div class="bonus-flash" id="bonusFlash"></div>
+
+<header>
+  <div class="logo-pill">y = ax² 퀴즈</div>
+  <h1>포물선 <span>완전정복</span></h1>
+  <p>10문제 · 문제당 30초 · 빠를수록 보너스!</p>
+</header>
+
+<div class="progress-row" id="progressRow">
+  <div class="prog-bar-bg"><div class="prog-bar-fill" id="progFill" style="width:0%"></div></div>
+  <span class="prog-label" id="progLabel">0 / 10</span>
+  <span class="score-chip" id="scoreChip">0점</span>
+</div>
+
+<div class="quiz-card" id="quizCard">
+  <div class="timeout-badge" id="timeoutBadge">⏰ 시간 초과!</div>
+
+  <!-- timer -->
+  <div class="timer-row">
+    <div class="timer-bar-bg"><div class="timer-bar-fill" id="timerFill" style="width:100%"></div></div>
+    <span class="timer-num" id="timerNum">30</span>
+  </div>
+
+  <!-- meta -->
+  <div class="q-meta">
+    <span class="q-type-tag" id="qTypeTag">유형</span>
+    <span class="q-diff" id="qDiff"></span>
+    <button class="hint-btn" id="hintBtn" onclick="useHint()">💡 힌트</button>
+  </div>
+
+  <div class="q-text" id="qText"></div>
+  <div class="hint-box" id="hintBox"></div>
+
+  <!-- graph (single) -->
+  <div class="graph-wrap" id="graphWrap" style="display:none">
+    <canvas class="graph" id="graphCanvas" width="280" height="210"></canvas>
+  </div>
+
+  <!-- 2x2 graph grid -->
+  <div class="graph-grid" id="graphGrid" style="display:none"></div>
+
+  <!-- text options -->
+  <div class="options" id="optionsGrid" style="display:none"></div>
+
+  <div class="feedback" id="feedback">
+    <div class="fb-title" id="fbTitle"></div>
+    <div id="fbBody"></div>
+  </div>
+  <button class="next-btn" id="nextBtn" onclick="nextQuestion()">다음 문제 →</button>
+</div>
+
+<div class="result-screen" id="resultScreen">
+  <div class="result-emblem" id="rEmblem">🏆</div>
+  <div class="result-title" id="rTitle">결과 <span>확인!</span></div>
+  <div class="result-sub" id="rSub"></div>
+  <div class="stats-grid">
+    <div class="stat-box"><div class="stat-val" id="rCorrect">0</div><div class="stat-lbl">정답</div></div>
+    <div class="stat-box"><div class="stat-val" id="rWrong">0</div><div class="stat-lbl">오답</div></div>
+    <div class="stat-box"><div class="stat-val" id="rScore">0</div><div class="stat-lbl">총점</div></div>
+  </div>
+  <div class="review-card">
+    <h3>📋 오답 노트</h3>
+    <div id="reviewItems"></div>
+  </div>
+  <button class="restart-btn" onclick="restart()">다시 도전하기 🔄</button>
+</div>
+
+<script>
+// ─── QUESTION BANK ───────────────────────────────────────────────
+const QBANK = [
+  // 유형1: 그래프 → 식 고르기 (3문제)
+  {
+    type:'graph-to-eq',
+    diff:'⭐ 쉬움',
+    typeLabel:'그래프 → 식',
+    a:2,
+    text:'아래 포물선의 식으로 알맞은 것은?',
+    options:['y = 2x²','y = ½x²','y = -2x²','y = -½x²'],
+    answer:0,
+    hint:'포물선이 아래로 볼록이면 a > 0, y = x²보다 좁으면 |a| > 1이에요.',
+    feedback:'아래로 볼록(a > 0)이고 y = x²보다 폭이 좁으므로 a > 1이에요. 보기 중 아래로 볼록이면서 |a| > 1인 것은 <strong>y = 2x²</strong>입니다.',
+  },
+  {
+    type:'graph-to-eq',
+    diff:'⭐ 쉬움',
+    typeLabel:'그래프 → 식',
+    a:-1,
+    text:'아래 포물선의 식으로 알맞은 것은?',
+    options:['y = x²','y = -x²','y = 2x²','y = -2x²'],
+    answer:1,
+    hint:'포물선이 위로 볼록이면 a < 0이에요.',
+    feedback:'위로 볼록(a < 0)이고 y = -x²와 폭이 같으므로 a = -1, 즉 <strong>y = -x²</strong>입니다.',
+  },
+  {
+    type:'graph-to-eq',
+    diff:'⭐⭐ 보통',
+    typeLabel:'그래프 → 식',
+    a:-0.5,
+    text:'아래 포물선의 식으로 알맞은 것은?',
+    options:['y = 2x²','y = -2x²','y = ½x²','y = -½x²'],
+    answer:3,
+    hint:'위로 볼록이면서 y = -x²보다 폭이 넓으면 |a| < 1이에요.',
+    feedback:'위로 볼록(a < 0)이고 y = -x²보다 폭이 넓으므로 |a| < 1이에요. 따라서 <strong>y = -½x²</strong>입니다.',
+  },
+
+  // 유형2: 식 → 그래프 고르기 (2문제)
+  {
+    type:'eq-to-graph',
+    diff:'⭐⭐ 보통',
+    typeLabel:'식 → 그래프',
+    text:'<span class="eq">y = 3x²</span>의 그래프를 고르세요.',
+    graphOptions:[
+      {a:3,  label:'A'},
+      {a:1,  label:'B'},
+      {a:-3, label:'C'},
+      {a:0.5,label:'D'},
+    ],
+    answer:0,
+    hint:'a = 3이면 아래로 볼록이고 y = x²보다 폭이 훨씬 좁아요.',
+    feedback:'a = 3 > 0이므로 아래로 볼록(∪), |a| = 3 > 1이므로 y = x²보다 폭이 좁아요. 정답은 <strong>A</strong>입니다.',
+  },
+  {
+    type:'eq-to-graph',
+    diff:'⭐⭐ 보통',
+    typeLabel:'식 → 그래프',
+    text:'<span class="eq">y = -⅓x²</span>의 그래프를 고르세요.',
+    graphOptions:[
+      {a:-3,   label:'A'},
+      {a:0.33, label:'B'},
+      {a:-0.33,label:'C'},
+      {a:3,    label:'D'},
+    ],
+    answer:2,
+    hint:'a = -⅓이면 위로 볼록이고 y = -x²보다 폭이 넓어요.',
+    feedback:'a = -⅓ < 0이므로 위로 볼록(∩), |a| = ⅓ < 1이므로 y = -x²보다 폭이 넓어요. 정답은 <strong>C</strong>입니다.',
+  },
+
+  // 유형3: 두 그래프 비교 (2문제)
+  {
+    type:'compare',
+    diff:'⭐⭐ 보통',
+    typeLabel:'그래프 비교',
+    aList:[2, 0.5],
+    text:'아래 두 포물선 중 폭이 더 <strong>좁은</strong> 것의 식은?',
+    options:['y = 2x²','y = ½x²','폭이 같다','알 수 없다'],
+    answer:0,
+    hint:'|a|가 클수록 포물선의 폭이 좁아져요.',
+    feedback:'|2| = 2 > |½| = 0.5이므로 <strong>y = 2x²</strong>의 폭이 더 좁습니다.',
+  },
+  {
+    type:'compare',
+    diff:'⭐⭐⭐ 어려움',
+    typeLabel:'그래프 비교',
+    aList:[-3, -0.5],
+    text:'아래 두 포물선을 비교한 설명으로 <strong>옳은</strong> 것은?',
+    options:[
+      'y = -3x²가 y = -½x²보다 폭이 넓다',
+      'y = -3x²가 y = -½x²보다 폭이 좁다',
+      '두 그래프 모두 아래로 볼록이다',
+      '두 그래프의 꼭짓점이 다르다',
+    ],
+    answer:1,
+    hint:'|-3| = 3 > |-½| = 0.5 이에요. |a|가 클수록 폭이 좁아진다는 것을 기억하세요.',
+    feedback:'두 그래프 모두 a < 0이므로 위로 볼록이에요. |-3| = 3 > 0.5이므로 <strong>y = -3x²의 폭이 더 좁습니다.</strong>',
+  },
+
+  // 유형4: 빈칸 채우기 (2문제)
+  {
+    type:'text',
+    diff:'⭐⭐ 보통',
+    typeLabel:'빈칸 채우기',
+    text:'y = ax²에서 a의 값이 <strong>클수록</strong> 포물선의 폭은 어떻게 되나요?',
+    options:['넓어진다','좁아진다','변하지 않는다','꼭짓점이 이동한다'],
+    answer:1,
+    hint:'y = x², y = 2x², y = 3x²를 머릿속으로 그려보세요. a가 커질수록 어떻게 될까요?',
+    feedback:'|a|가 클수록 포물선은 y축에 가까워지며 <strong>폭이 좁아집니다.</strong> 예: y = 3x²는 y = x²보다 좁아요.',
+  },
+  {
+    type:'text',
+    diff:'⭐⭐⭐ 어려움',
+    typeLabel:'빈칸 채우기',
+    text:'y = ax²의 그래프가 y = x²보다 폭이 넓고 아래로 볼록할 때, a의 범위는?',
+    options:['a > 1','0 < a < 1','a < -1','-1 < a < 0'],
+    answer:1,
+    hint:'아래로 볼록이면 a > 0, y = x²보다 넓으면 |a| < 1이에요. 두 조건을 동시에 만족하는 범위는?',
+    feedback:'아래로 볼록 → a > 0, y = x²보다 폭이 넓음 → |a| < 1 두 조건을 합치면 <strong>0 < a < 1</strong>입니다.',
+  },
+
+  // 유형5: 참/거짓 (1문제)
+  {
+    type:'text',
+    diff:'⭐ 쉬움',
+    typeLabel:'참 / 거짓',
+    text:'"y = ax²의 그래프는 a의 값에 관계없이 항상 원점 (0, 0)을 지난다." 이 설명은?',
+    options:['참 (옳다)','거짓 (틀렸다)','a > 0일 때만 참','a의 값에 따라 다르다'],
+    answer:0,
+    hint:'x = 0을 y = ax²에 대입해보세요.',
+    feedback:'x = 0을 대입하면 y = a × 0² = 0이에요. a값에 상관없이 항상 y = 0이므로 <strong>항상 원점을 지납니다.</strong> 참(옳다)!',
+  },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────
+let questions=[], current=0, score=0, history=[];
+let timerInterval=null, timeLeft=30, answered=false, hintUsed=false;
+
+// ─── INIT ─────────────────────────────────────────────────────────
+function init(){
+  questions = shuffle([...QBANK]);
+  current=0; score=0; history=[];
+  document.getElementById('quizCard').style.display='';
+  document.getElementById('progressRow').style.display='';
+  document.getElementById('resultScreen').classList.remove('show');
+  renderQuestion();
+}
+
+function shuffle(arr){return arr.sort(()=>Math.random()-.5)}
+
+// ─── RENDER ───────────────────────────────────────────────────────
+function renderQuestion(){
+  const q = questions[current];
+  answered=false; hintUsed=false; timeLeft=30;
+
+  // progress
+  document.getElementById('progFill').style.width=(current/questions.length*100)+'%';
+  document.getElementById('progLabel').textContent=`${current} / ${questions.length}`;
+  document.getElementById('scoreChip').textContent=`${score}점`;
+
+  // meta
+  document.getElementById('qTypeTag').textContent=q.typeLabel;
+  document.getElementById('qDiff').textContent=q.diff;
+  document.getElementById('qText').innerHTML=q.text;
+
+  // hint
+  const hintBtn=document.getElementById('hintBtn');
+  hintBtn.className='hint-btn';
+  hintBtn.textContent='💡 힌트';
+  document.getElementById('hintBox').className='hint-box';
+
+  // reset feedback/next/timeout
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('nextBtn').className='next-btn';
+  document.getElementById('timeoutBadge').className='timeout-badge';
+
+  // hide all content areas
+  document.getElementById('graphWrap').style.display='none';
+  document.getElementById('graphGrid').style.display='none';
+  document.getElementById('optionsGrid').style.display='none';
+
+  // animation reset
+  const card=document.getElementById('quizCard');
+  card.style.animation='none';
+  requestAnimationFrame(()=>{ card.style.animation=''; });
+
+  if(q.type==='graph-to-eq'){
+    document.getElementById('graphWrap').style.display='flex';
+    drawSingleGraph(q.a);
+    renderTextOptions(q);
+  } else if(q.type==='eq-to-graph'){
+    document.getElementById('graphGrid').style.display='grid';
+    renderGraphGrid(q);
+  } else if(q.type==='compare'){
+    document.getElementById('graphWrap').style.display='flex';
+    drawTwoGraphs(q.aList[0], q.aList[1]);
+    renderTextOptions(q);
+  } else {
+    renderTextOptions(q);
+  }
+
+  startTimer();
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────
+function startTimer(){
+  clearInterval(timerInterval);
+  updateTimerUI();
+  timerInterval=setInterval(()=>{
+    if(answered) return;
+    timeLeft--;
+    updateTimerUI();
+    if(timeLeft<=0) onTimeout();
+  },1000);
+}
+
+function updateTimerUI(){
+  const fill=document.getElementById('timerFill');
+  const num=document.getElementById('timerNum');
+  const pct=(timeLeft/30)*100;
+  fill.style.width=pct+'%';
+  num.textContent=timeLeft;
+
+  fill.className='timer-bar-fill';
+  num.className='timer-num';
+  if(timeLeft<=10 && timeLeft>5){ fill.classList.add('warn'); num.classList.add('warn'); }
+  if(timeLeft<=5){ fill.classList.add('danger'); num.classList.add('danger'); }
+}
+
+function stopTimer(){ clearInterval(timerInterval); }
+
+function onTimeout(){
+  stopTimer();
+  answered=true;
+  const q=questions[current];
+  history.push({q:q.text.replace(/<[^>]*>/g,'').substring(0,50), correct:false, ans:getCorrectLabel(q), timeout:true});
+
+  document.getElementById('timeoutBadge').className='timeout-badge show';
+  setTimeout(()=>{ document.getElementById('timeoutBadge').className='timeout-badge'; },1500);
+
+  // mark correct answer
+  markCorrect(q);
+
+  showFeedback(q, false, true);
+}
+
+// ─── GRAPH DRAWING ────────────────────────────────────────────────
+function drawSingleGraph(a){
+  const cv=document.getElementById('graphCanvas');
+  drawParabola(cv, a, 280, 210, 30);
+}
+
+function drawTwoGraphs(a1,a2){
+  const cv=document.getElementById('graphCanvas');
+  const ctx=cv.getContext('2d');
+  const W=280,H=210;
+  ctx.clearRect(0,0,W,H);
+  drawAxesOnCtx(ctx,W,H,30);
+  const cols=[['#c94f2a',`y=${a1}x²`],['#2a6bc9',`y=${a2>=1?a2:a2===0.5?'½':a2}x²`]];
+  [[a1,cols[0]],[a2,cols[1]]].forEach(([a,[col,lbl]])=>{
+    drawCurve(ctx,a,W,H,30,col,2.2);
+    // label
+    const cx=W/2,cy=H/2+15,sc=30;
+    const lx=cx+20, ly=cy-a*(20/sc)*(20/sc)*sc-8;
+    ctx.fillStyle=col; ctx.font='bold 10px DM Mono,monospace';
+    ctx.fillText(lbl, Math.min(lx,W-55), Math.max(14,Math.min(ly,H-8)));
+  });
+  drawOriginDot(ctx,W,H);
+}
+
+function drawParabola(cv,a,W,H,scale){
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  drawAxesOnCtx(ctx,W,H,scale);
+  drawCurve(ctx,a,W,H,scale,'#c94f2a',2.5);
+  // tick labels
+  const cx=W/2, cy=H/2+15, sc=scale;
+  ctx.fillStyle='#7a756c'; ctx.font='9px DM Mono,monospace'; ctx.textAlign='center';
+  [-2,-1,1,2].forEach(v=>{
+    ctx.fillText(v, cx+v*sc, cy+14);
+  });
+  ctx.textAlign='right';
+  [1,2,3,4].forEach(v=>{
+    const yy=cy-v*sc;
+    if(yy>5) ctx.fillText(v,cx-5,yy+3);
+  });
+  drawOriginDot(cv.getContext('2d'),W,H);
+}
+
+function drawSmallGraph(cv,a,W,H){
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const sc=22;
+  drawAxesOnCtx(ctx,W,H,sc);
+  drawCurve(ctx,a,W,H,sc,'#c94f2a',2);
+  drawOriginDot(ctx,W,H);
+}
+
+function drawAxesOnCtx(ctx,W,H,sc){
+  const cx=W/2, cy=H/2+15;
+  ctx.strokeStyle='rgba(0,0,0,0.08)'; ctx.lineWidth=1;
+  for(let x=-6;x<=6;x++){ctx.beginPath();ctx.moveTo(cx+x*sc,0);ctx.lineTo(cx+x*sc,H);ctx.stroke();}
+  for(let y=-4;y<=6;y++){ctx.beginPath();ctx.moveTo(0,cy-y*sc);ctx.lineTo(W,cy-y*sc);ctx.stroke();}
+  ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(W,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,H);ctx.stroke();
+  ctx.fillStyle='#7a756c'; ctx.font='9px DM Mono,monospace'; ctx.textAlign='left';
+  ctx.fillText('x',W-10,cy-5);
+  ctx.fillText('y',cx+4,10);
+}
+
+function drawCurve(ctx,a,W,H,sc,col,lw){
+  const cx=W/2, cy=H/2+15;
+  ctx.strokeStyle=col; ctx.lineWidth=lw;
+  ctx.beginPath(); let first=true;
+  for(let px=0;px<=W;px++){
+    const xv=(px-cx)/sc;
+    const yv=a*xv*xv;
+    const py=cy-yv*sc;
+    if(py<-8||py>H+8){first=true;continue;}
+    if(first){ctx.moveTo(px,py);first=false;}else{ctx.lineTo(px,py);}
+  }
+  ctx.stroke();
+}
+
+function drawOriginDot(ctx,W,H){
+  const cx=W/2, cy=H/2+15;
+  ctx.fillStyle='#c94f2a';
+  ctx.beginPath();ctx.arc(cx,cy,3.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#7a756c'; ctx.font='9px DM Mono,monospace'; ctx.textAlign='left';
+  ctx.fillText('O',cx+4,cy+12);
+}
+
+// ─── RENDER OPTIONS ───────────────────────────────────────────────
+function renderTextOptions(q){
+  const grid=document.getElementById('optionsGrid');
+  grid.style.display='grid';
+  grid.innerHTML='';
+  const labels=['A','B','C','D'];
+  q.options.forEach((opt,i)=>{
+    const btn=document.createElement('button');
+    btn.className='opt-btn';
+    btn.innerHTML=`<span class="opt-idx">${labels[i]}</span>${opt}`;
+    btn.onclick=()=>selectTextAnswer(i,q);
+    grid.appendChild(btn);
+  });
+}
+
+function renderGraphGrid(q){
+  const grid=document.getElementById('graphGrid');
+  grid.innerHTML='';
+  q.graphOptions.forEach((go,i)=>{
+    const div=document.createElement('div');
+    div.className='graph-option';
+    div.setAttribute('data-idx',i);
+    div.innerHTML=`<span class="opt-label">${go.label}</span><canvas width="130" height="110"></canvas><span class="check-icon">✓</span>`;
+    const cv=div.querySelector('canvas');
+    drawSmallGraph(cv,go.a,130,110);
+    div.onclick=()=>selectGraphAnswer(i,q);
+    grid.appendChild(div);
+  });
+}
+
+// ─── ANSWER SELECTION ─────────────────────────────────────────────
+function selectTextAnswer(i,q){
+  if(answered) return;
+  answered=true; stopTimer();
+  const correct=i===q.answer;
+  const earned = correct ? 10+timeLeft : 0;
+  if(correct){ score+=earned; showBonus(earned); }
+  history.push({q:q.text.replace(/<[^>]*>/g,'').substring(0,50),correct,ans:getCorrectLabel(q)});
+
+  const btns=document.querySelectorAll('.opt-btn');
+  btns.forEach(b=>b.disabled=true);
+  btns[q.answer].classList.add('correct');
+  if(!correct) btns[i].classList.add('wrong');
+
+  showFeedback(q,correct,false);
+}
+
+function selectGraphAnswer(i,q){
+  if(answered) return;
+  answered=true; stopTimer();
+  const correct=i===q.answer;
+  const earned = correct ? 10+timeLeft : 0;
+  if(correct){ score+=earned; showBonus(earned); }
+  history.push({q:q.text.replace(/<[^>]*>/g,'').substring(0,50),correct,ans:`${q.graphOptions[q.answer].label}`});
+
+  const opts=document.querySelectorAll('.graph-option');
+  opts.forEach(o=>{ o.classList.add('disabled'); o.onclick=null; });
+  opts[q.answer].classList.add('correct');
+  if(!correct) opts[i].classList.add('wrong');
+
+  showFeedback(q,correct,false);
+}
+
+function markCorrect(q){
+  if(q.type==='eq-to-graph'){
+    const opts=document.querySelectorAll('.graph-option');
+    opts.forEach(o=>{ o.classList.add('disabled'); o.onclick=null; });
+    opts[q.answer].classList.add('correct');
+  } else {
+    const btns=document.querySelectorAll('.opt-btn');
+    btns.forEach(b=>b.disabled=true);
+    btns[q.answer].classList.add('correct');
+  }
+}
+
+function getCorrectLabel(q){
+  if(q.type==='eq-to-graph') return q.graphOptions[q.answer].label;
+  return q.options[q.answer];
+}
+
+// ─── FEEDBACK ─────────────────────────────────────────────────────
+function showFeedback(q, correct, timeout){
+  const fb=document.getElementById('feedback');
+  const fbTitle=document.getElementById('fbTitle');
+  const fbBody=document.getElementById('fbBody');
+
+  if(timeout){
+    fb.className='feedback show timeout';
+    fbTitle.textContent='⏰ 시간 초과!';
+  } else if(correct){
+    fb.className='feedback show ok';
+    fbTitle.textContent='✅ 정답!';
+  } else {
+    fb.className='feedback show fail';
+    fbTitle.textContent='❌ 틀렸어요';
+  }
+  fbBody.innerHTML=q.feedback;
+  document.getElementById('nextBtn').className='next-btn show';
+  if(current===questions.length-1)
+    document.getElementById('nextBtn').textContent='결과 보기 →';
+}
+
+// ─── HINT ─────────────────────────────────────────────────────────
+function useHint(){
+  if(answered||hintUsed) return;
+  hintUsed=true;
+  const q=questions[current];
+  const btn=document.getElementById('hintBtn');
+  btn.classList.add('used');
+  btn.textContent='💡 힌트 사용됨';
+  document.getElementById('hintBox').textContent=q.hint;
+  document.getElementById('hintBox').classList.add('show');
+}
+
+// ─── BONUS FLASH ──────────────────────────────────────────────────
+let bonusTimeout=null;
+function showBonus(earned){
+  const el=document.getElementById('bonusFlash');
+  const bonus=earned-10;
+  el.textContent=bonus>0 ? `+${earned}점 (기본 10 + 보너스 ${bonus})` : '+10점';
+  el.classList.add('show');
+  clearTimeout(bonusTimeout);
+  bonusTimeout=setTimeout(()=>el.classList.remove('show'),2000);
+}
+
+// ─── NEXT ─────────────────────────────────────────────────────────
+function nextQuestion(){
+  current++;
+  if(current>=questions.length){ showResult(); return; }
+  renderQuestion();
+}
+
+// ─── RESULT ───────────────────────────────────────────────────────
+function showResult(){
+  document.getElementById('quizCard').style.display='none';
+  document.getElementById('progressRow').style.display='none';
+
+  const correct=history.filter(h=>h.correct).length;
+  const wrong=history.length-correct;
+  const pct=Math.round(correct/history.length*100);
+  const maxScore=questions.length*40;
+
+  let emblem='📖',title='다시 도전해봐요!';
+  if(pct===100){emblem='🏆';title='완벽해요!';}
+  else if(pct>=80){emblem='🌟';title='훌륭해요!';}
+  else if(pct>=60){emblem='👍';title='잘했어요!';}
+
+  document.getElementById('rEmblem').textContent=emblem;
+  document.getElementById('rTitle').innerHTML=`${title.slice(0,-1)} <span>${title.slice(-1)}</span>`;
+  document.getElementById('rSub').textContent=`${pct}% 정답 · 최대 ${maxScore}점 중 ${score}점 획득`;
+  document.getElementById('rCorrect').textContent=correct;
+  document.getElementById('rWrong').textContent=wrong;
+  document.getElementById('rScore').textContent=score;
+
+  const wrongList=history.filter(h=>!h.correct);
+  const reviewDiv=document.getElementById('reviewItems');
+  if(wrongList.length===0){
+    reviewDiv.innerHTML='<div style="color:var(--success);font-size:.9rem;padding:8px 0">🎉 오답이 없습니다! 완벽해요!</div>';
+  } else {
+    reviewDiv.innerHTML=wrongList.map(h=>`
+      <div class="ri">
+        <span class="ri-icon">${h.timeout?'⏰':'❌'}</span>
+        <div class="ri-body">
+          <div class="ri-q">${h.q}${h.q.length>=50?'...':''}</div>
+          <div class="ri-a">정답: ${h.ans}${h.timeout?' (시간 초과)':''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  document.getElementById('resultScreen').classList.add('show');
+}
+
+// ─── RESTART ──────────────────────────────────────────────────────
+function restart(){
+  document.getElementById('quizCard').style.display='';
+  document.getElementById('progressRow').style.display='';
+  document.getElementById('resultScreen').classList.remove('show');
+  init();
+}
+
+init();
+</script>
+</body>
+</html>
